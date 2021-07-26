@@ -5,11 +5,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Grpc.AspNetCore" Version="2.38.0" /> <!--Suporte aos metasuportes necessários para implementação do gRPC-->
+    <!--Suporte aos metasuportes necessários para implementação do gRPC-->
+    <PackageReference Include="Grpc.AspNetCore" Version="2.38.0" /> 
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Controllers\" />
+    <!--Necessário para geração de classes bases na compilação a partir do aquivo proto-->
+    <Protobuf Include="Protos\greet.proto" GrpcServices="Server" />
   </ItemGroup>
 
 </Project>

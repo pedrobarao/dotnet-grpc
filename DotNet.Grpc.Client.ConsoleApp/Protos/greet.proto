@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+option csharp_namespace = "DotNet.Grpc.Server.Protos";
+
+package Greet;
+
+service Greeter {
+  // Sends a greeting
+  rpc SayHello (HelloRequest) returns (HelloResponse);
+
+  // Client opens a stream with the server and reads its messages
+  rpc GetSayHelloStream(HelloRequest) returns (stream HelloResponse) {}
+
+  // Client opens a stream with the server and sends messages to it
+  rpc SendSayHelloStream(stream HelloRequest) returns (HelloResponse) {}
+
+  rpc BiDirectionalSayHelloStream(stream HelloRequest) returns (stream HelloResponse) {}
+}
+
+// The request message containing the user's name.
+message HelloRequest {
+  string name = 1;
+}
+
+// The response message containing the greetings.
+message HelloResponse {
+  string message = 1;
+}

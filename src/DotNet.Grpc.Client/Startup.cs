@@ -1,16 +1,13 @@
+using DotNet.Grpc.Server.Protos;
+using DotNet.Grpc.Server.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.HttpsPolicy;
-using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace DotNet.Grpc.Client
 {
@@ -23,18 +20,34 @@ namespace DotNet.Grpc.Client
 
         public IConfiguration Configuration { get; }
 
-        // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-
             services.AddControllers();
             services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "DotNet.Grpc.Client", Version = "v1" });
             });
+
+            services.AddCors(options =>
+            {
+                options.AddPolicy("Full",
+                    builder =>
+                        builder
+                            .AllowAnyOrigin()
+                            .AllowAnyMethod()
+                            .AllowAnyHeader());
+            });
+
+            services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
+
+            // gRPC IoC
+            services.AddScoped<IGreeterGrpcService, GreeterGrpcService>();
+            services.AddGrpcClient<Greeter.GreeterClient>(options =>
+            {
+                options.Address = new Uri(Configuration["gRPCServerUrl"]);
+            });
         }
 
-        // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
             if (env.IsDevelopment())
@@ -47,6 +60,8 @@ namespace DotNet.Grpc.Client
             app.UseHttpsRedirection();
 
             app.UseRouting();
+
+            app.UseCors("Full");
 
             app.UseAuthorization();
 
