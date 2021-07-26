@@ -51,7 +51,7 @@ namespace DotNet.Grpc.Server.Services
             // Receive and process some requests
             await foreach (var request in requestStream.ReadAllAsync())
             {
-                result.Append($"Hello {request.Name}");
+                result.Append($" Hello {request.Name}");
             }
 
             // Send a response
