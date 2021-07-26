@@ -8,64 +8,127 @@ namespace DotNet.Grpc.Client.ConsoleApp
 {
     class Program
     {
+        static string _grpcServerUrl = "https://localhost:5201";
+
         static async Task Main(string[] args)
         {
-            using var channel = GrpcChannel.ForAddress("https://localhost:5201");
+            // Unary RPC
+            await SayHello();
+
+            // Server streaming RPC
+            await SayHelloServerStreaming();
+
+            // Client streaming RPC
+            await SayHelloClientStreaming();
+
+            // Bidirectional streaming RPC
+            await SayHelloBidirectionalStreaming();
+
+            Console.WriteLine("Press any key to exit...");
+            Console.ReadKey();
+        }
+
+        /// <summary>
+        /// Unary RPC
+        /// </summary>
+        static async Task SayHello()
+        {
+            Console.WriteLine("=====> Unary RPC <=====");
+
+            using var channel = GrpcChannel.ForAddress(_grpcServerUrl);
             var client = new Greeter.GreeterClient(channel);
 
-            // Unary gRPCclient
-            Console.WriteLine("=====> Unary gRPCclient <=====");
-            var responseUnary = await client.SayHelloAsync(new HelloRequest { Name = "Unary call" });
-            Console.WriteLine($"Response: {responseUnary.Message}");
+            // Request-response
+            var response = await client.SayHelloAsync(new HelloRequest { Name = "World" });
+            Console.WriteLine($"Response: {response.Message}");
+        }
 
-            // Server streaming call
-            Console.WriteLine("=====> Server streaming call <=====");
-            using var serverStreamCall = client.GetSayHelloStream(new HelloRequest { Name = "Pedro" });
-            await foreach (var responseServerStream in serverStreamCall.ResponseStream.ReadAllAsync())
+        /// <summary>
+        /// Server streaming RPC
+        /// </summary>
+        static async Task SayHelloServerStreaming()
+        {
+            Console.WriteLine("=====> Server streaming RPC <=====");
+
+            using var channel = GrpcChannel.ForAddress(_grpcServerUrl);
+            var client = new Greeter.GreeterClient(channel);
+
+            // Send a request
+            using var call = client.SayHelloServerStreaming(new HelloRequest { Name = "World" });
+
+            // Receive many responses from server
+            await foreach (var response in call.ResponseStream.ReadAllAsync())
             {
-                Console.WriteLine($"Response: {responseServerStream.Message}");
+                Console.WriteLine($"Response: {response.Message}");
             }
+        }
 
-            // Client streaming call
-            Console.WriteLine("=====> Client streaming call <=====");
-            string[] names = { "Pedro", "Maria", "Ana", "Mariane" };
+        /// <summary>
+        /// Client streaming RPC
+        /// </summary>
+        static async Task SayHelloClientStreaming()
+        {
+            Console.WriteLine("=====> Client streaming RPC <=====");
 
-            using (var clientStreamCall = client.SendSayHelloStream())
+            using var channel = GrpcChannel.ForAddress(_grpcServerUrl);
+            var client = new Greeter.GreeterClient(channel);
+
+            string[] names = { "World 1", "World 2", "World 3", "World 4" };
+
+            // Preparing request
+            using (var call = client.SayHelloClientStreaming())
             {
+                // Send many requests
                 foreach (var name in names)
                 {
-                    await clientStreamCall.RequestStream.WriteAsync(new HelloRequest { Name = name });
+                    await call.RequestStream.WriteAsync(new HelloRequest { Name = name });
                 }
-                await clientStreamCall.RequestStream.CompleteAsync();
 
-                HelloResponse clientStreamResponse = await clientStreamCall.ResponseAsync;
-                Console.WriteLine($"Response: {clientStreamResponse.Message}");
+                await call.RequestStream.CompleteAsync();
+
+                // Receice a response
+                HelloResponse response = await call.ResponseAsync;
+                Console.WriteLine($"Response: {response.Message}");
             }
+        }
 
-            // Bi-directional streaming call
-            Console.WriteLine("=====> Bi-directional streaming call <=====");
-            using (var bidirectionalStreamingCall = client.BiDirectionalSayHelloStream())
+        /// <summary>
+        /// Bidirectional streaming RPC
+        /// </summary>
+        static async Task SayHelloBidirectionalStreaming()
+        {
+            Console.WriteLine("=====> Bidirectional streaming RPC <=====");
+            
+            using var channel = GrpcChannel.ForAddress(_grpcServerUrl);
+            var client = new Greeter.GreeterClient(channel);
+            
+            // Preparing request
+            using (var call = client.SayHelloBidirectionalStreaming())
             {
+                // Get many responses in task
                 var responseReaderTask = Task.Run(async () =>
                 {
-                    while (await bidirectionalStreamingCall.ResponseStream.MoveNext())
+                    while (await call.ResponseStream.MoveNext())
                     {
-                        var responseServer = bidirectionalStreamingCall.ResponseStream.Current;
+                        var responseServer = call.ResponseStream.Current;
                         Console.WriteLine($"Response: {responseServer.Message}");
                     }
                 });
 
-                string[] namesBd = { "João", "Paulo", "Leandro", "Márcia" };
-                foreach (var name in names)
+                string[] namesBd = { "World 5", "World 6", "World 7", "World 8" };
+                
+                // Send many requests
+                foreach (var name in namesBd)
                 {
-                    await bidirectionalStreamingCall.RequestStream.WriteAsync(new HelloRequest { Name = name });
+                    await call.RequestStream.WriteAsync(new HelloRequest { Name = name });
                 }
-                await bidirectionalStreamingCall.RequestStream.CompleteAsync();
+
+                // Wait process all requests from client
+                await call.RequestStream.CompleteAsync();
+
+                // Wait process all responses from server
                 await responseReaderTask;
             }
-
-            Console.WriteLine("Press any key to exit...");
-            Console.ReadKey();
         }
     }
 }

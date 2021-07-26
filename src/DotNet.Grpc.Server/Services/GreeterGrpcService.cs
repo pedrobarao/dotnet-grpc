@@ -1,7 +1,5 @@
 ﻿using DotNet.Grpc.Server.Protos;
 using Grpc.Core;
-using Microsoft.Extensions.Logging;
-using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -9,12 +7,9 @@ namespace DotNet.Grpc.Server.Services
 {
     public class GreeterGrpcService : Greeter.GreeterBase
     {
-        private readonly ILogger<GreeterGrpcService> _logger;
-        public GreeterGrpcService(ILogger<GreeterGrpcService> logger)
-        {
-            _logger = logger;
-        }
-
+        /// <summary>
+        /// Unary RPC
+        /// </summary>
         public override async Task<HelloResponse> SayHello(HelloRequest request, ServerCallContext context)
         {
             return await Task.FromResult(new HelloResponse
@@ -23,41 +18,55 @@ namespace DotNet.Grpc.Server.Services
             });
         }
 
-        public override async Task GetSayHelloStream(HelloRequest request, IServerStreamWriter<HelloResponse> responseStream, ServerCallContext context)
+        /// <summary>
+        /// Server streaming RPC
+        /// </summary>
+        public override async Task SayHelloServerStreaming(HelloRequest request, IServerStreamWriter<HelloResponse> responseStream, ServerCallContext context)
         {
             var i = 1;
+
+            // Send many responses
             while (!context.CancellationToken.IsCancellationRequested && i <= 5)
             {
                 await Task.Delay(500);
-
                 var helloResponse = new HelloResponse
                 {
                     Message = $"Hello {request.Name} {i}"
                 };
 
+                // Send response
                 await responseStream.WriteAsync(helloResponse);
 
                 i++;
             }
         }
 
-        public override async Task<HelloResponse> SendSayHelloStream(IAsyncStreamReader<HelloRequest> requestStream, ServerCallContext context)
+        /// <summary>
+        /// Client streaming RPC
+        /// </summary>
+        public override async Task<HelloResponse> SayHelloClientStreaming(IAsyncStreamReader<HelloRequest> requestStream, ServerCallContext context)
         {
-            var result = new StringBuilder("Hello");
+            var result = new StringBuilder();
 
+            // Receive and process some requests
             await foreach (var request in requestStream.ReadAllAsync())
             {
-                result.Append($", {request.Name}");
-            };
+                result.Append($"Hello {request.Name}");
+            }
 
+            // Send a response
             return await Task.FromResult(new HelloResponse
             {
                 Message = result.ToString()
             });
         }
 
-        public override async Task BiDirectionalSayHelloStream(IAsyncStreamReader<HelloRequest> requestStream, IServerStreamWriter<HelloResponse> responseStream, ServerCallContext context)
+        /// <summary>
+        /// Bidirectional streaming RPC
+        /// </summary>
+        public override async Task SayHelloBidirectionalStreaming(IAsyncStreamReader<HelloRequest> requestStream, IServerStreamWriter<HelloResponse> responseStream, ServerCallContext context)
         {
+            // Receive some requests, process and returns a response per request
             await foreach (var message in requestStream.ReadAllAsync())
             {
                 var helloResponse = new HelloResponse
